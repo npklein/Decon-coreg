@@ -20,18 +20,13 @@ import org.apache.commons.cli.ParseException;
 
 public class CommandLineOptions {
 	private String expressionFile;
-	private String genotypeFile;
 	private String cellCountFile;
-	private String snpsToTestFile;
+	private String genesToTestFile;
 	private String outfile = "deconvolutionResults.csv";
 	private String outfolder;
-	private Boolean roundDosage = false;
 	private Boolean testRun = false;
-	private Boolean wholeBloodQTL = false;
+	private Boolean wholeBloodCorrelation = false;
 	private Boolean noConsole = false;
-	private Boolean addGenotypeTerm = false;
-	private Boolean outputPredictedExpression = false;
-	private String genotypeConfigurationType = "one";
 	private String programVersion;
 	private Boolean useOLS = false;
 
@@ -50,27 +45,17 @@ public class CommandLineOptions {
 		programVersion = properties.getProperty("artifactId")+"_"+properties.getProperty("version");
 		Options options = new Options();
 		Option help = new Option("help", "print this message");
-		Option addGenotypeTermOption = Option.builder("a").required(false).longOpt("add_genotype_term")
-				.desc("Add genotype term to the model").build();
-		Option allDosages = Option.builder("ad").required(false).longOpt("all_dosages")
-				.desc("Filter out QTLs where not all dosages are present in at least 1 sample").build();
 		Option cellcount = Option.builder("c").required(true).hasArg().longOpt("cellcount").desc("Cellcount file name")
 				.argName("file").build();
 		Option expression = Option.builder("e").required(true).hasArg().longOpt("expression")
 				.desc("Expression file name").argName("file").build();
-		Option filterSamplesOption =  Option.builder("f").required(false).longOpt("filter_samples")
-				.desc("If set, remove samples that are filtered out because of -m or -ad. By default p-values of these are set to 333.0").build();
 		Option noConsoleOption = Option.builder("no").required(false).longOpt("no_console")
 				.desc("Do not output logging info to the console").build();
 		Option outfolder = Option.builder("o").required(true).hasArg().longOpt("outfolder").desc("Path to folder to write output to")
 				.argName("path").build();
-		Option outputPredictedExpressionOption = Option.builder("oe").required(false).longOpt("outputPredictedExpression").desc("Write output file with predicted expression")
-				.build();
 		Option outfile = Option.builder("of").required(false).hasArg().longOpt("outfile").desc("Outfile name of deconvolution results (will be written in outfolder)")
 				.argName("file").build();
-		Option roundDosage = Option.builder("r").required(false).longOpt("round_dosage")
-				.desc("Round the dosage to the closest int").build();
-		Option snpsToTestOption = Option.builder("sn").required(true).hasArg().longOpt("snpsToTest").argName("file")
+		Option genesToTestOption = Option.builder("sn").required(true).hasArg().longOpt("genesToTest").argName("file")
 				.desc("Tab delimited file with first column gene name, second column gene name.").build();
 		Option doTestRun = Option.builder("t").required(false).longOpt("test_run")
 				.desc("Only run deconvolution for 100 QTLs for quick test run").build();
@@ -78,20 +63,20 @@ public class CommandLineOptions {
 				.desc("Print the version of the program").build();
 		Option useOlsOption = Option.builder("uo").required(false).longOpt("use_OLS")
 				.desc("use OLS option").build();
-		options.addOption(filterSamplesOption);
+		Option wholeBloodCorrelationOption = Option.builder("wc").required(false).longOpt("whole_blood_correlation")
+				.desc("Calculate the whole blood correlation").build();
+		
 		options.addOption(help);
 		options.addOption(outfile);
 		options.addOption(expression);
 		options.addOption(cellcount);
-		options.addOption(roundDosage);
-		options.addOption(allDosages);
 		options.addOption(outfolder);
 		options.addOption(doTestRun);
-		options.addOption(snpsToTestOption);
+		options.addOption(genesToTestOption);
 		options.addOption(noConsoleOption);
-		options.addOption(outputPredictedExpressionOption);
 		options.addOption(version);
-		options.addOption(useOlsOption); 
+		options.addOption(useOlsOption);
+		options.addOption(wholeBloodCorrelationOption);
 
 		CommandLineParser cmdLineParser = new DefaultParser();
 		try{
@@ -113,14 +98,10 @@ public class CommandLineOptions {
 	}
 	
 	private void parseOptions(CommandLine cmdLine) throws IOException{
-		if (cmdLine.hasOption("round_dosage")) {
-			roundDosage = !roundDosage;
-		}
-	
 
 		expressionFile = cmdLine.getOptionValue("expression");
 		cellCountFile = cmdLine.getOptionValue("cellcount");
-		snpsToTestFile = cmdLine.getOptionValue("snpsToTest");
+		genesToTestFile = cmdLine.getOptionValue("genesToTestOption");
 		// check if all input files exist before starting the program to return error as early as possible
 		if(!new File(expressionFile).exists() || new File(expressionFile).isDirectory()) { 
 		    throw new FileNotFoundException(expressionFile+" does not exist");
@@ -128,8 +109,8 @@ public class CommandLineOptions {
 		if(!new File(cellCountFile).exists() || new File(cellCountFile).isDirectory()) { 
 		    throw new FileNotFoundException(cellCountFile+" does not exist");
 		}
-		if(!new File(snpsToTestFile).exists() || new File(snpsToTestFile).isDirectory()) { 
-		    throw new FileNotFoundException(snpsToTestFile+" does not exist");
+		if(!new File(genesToTestFile).exists() || new File(genesToTestFile).isDirectory()) { 
+		    throw new FileNotFoundException(genesToTestFile+" does not exist");
 		}
 				
 		if (cmdLine.hasOption("outfile")) {
@@ -147,12 +128,8 @@ public class CommandLineOptions {
 			testRun = !testRun;
 		}
 		
-		if (cmdLine.hasOption("whole_blood_qtl")){
-			wholeBloodQTL = !wholeBloodQTL;
-		}
-		
-		if (cmdLine.hasOption("outputPredictedExpression")){
-			outputPredictedExpression = !outputPredictedExpression;
+		if (cmdLine.hasOption("whole_blood_correlation")){
+			wholeBloodCorrelation = !wholeBloodCorrelation;
 		}
 		
 		if (cmdLine.hasOption("version")) {
@@ -192,34 +169,27 @@ public class CommandLineOptions {
 	    DeconvolutionLogger.log.info("======= DECONVOLUTION paramater settings =======");
 		DeconvolutionLogger.log.info(String.format("Expression file (-e): %s", expressionFile));
 		DeconvolutionLogger.log.info(String.format("Cellcount file (-c): %s", cellCountFile));
-		DeconvolutionLogger.log.info(String.format("SNPs to test file (-sn): %s", snpsToTestFile));
+		DeconvolutionLogger.log.info(String.format("Genes to test file (-sn): %s", genesToTestFile));
 		DeconvolutionLogger.log.info(String.format("Outfolder (-o): %s", outfolder));
 		DeconvolutionLogger.log.info(String.format("Outfile (-of): %s", outfile));
-		DeconvolutionLogger.log.info(String.format("Round dosage (-r): %s", roundDosage));
 		DeconvolutionLogger.log.info(String.format("test run doing only 100 QTL (-t): %s", testRun));
 		DeconvolutionLogger.log.info(String.format("Do not ouput logging info to console (-no): %s", noConsole));
-		DeconvolutionLogger.log.info(String.format("Write predicted expression to output file (-oe): %s", outputPredictedExpression));
 		DeconvolutionLogger.log.info(String.format("Use OLS(-uo): %s", useOLS));
+		DeconvolutionLogger.log.info(String.format("Calculate whole blood correlation (-wc): %s", wholeBloodCorrelation));
 		DeconvolutionLogger.log.info("=================================================");
 	}
 	public String getExpressionFile(){
 		return (expressionFile);
 	}
-	public String getSnpsToTestFile(){
-		return (snpsToTestFile);
+	public String getGenesToTestFile(){
+		return (genesToTestFile);
 	}	
-	public String getGenotypeFile(){
-		return genotypeFile;
-	}
+
 	public String getCellcountFile(){
 		return cellCountFile;
 	}
 	public String getOutfile(){
 		return outfile;
-	}
-
-	public Boolean getRoundDosage(){
-		return roundDosage;
 	}
 
 	public String getOutfolder() throws IllegalAccessException{
@@ -237,20 +207,8 @@ public class CommandLineOptions {
 		return testRun;
 	}
 
-	public Boolean getWholeBloodQTL(){
-		return wholeBloodQTL;
-	}
-
-	public Boolean getOutputPredictedExpression(){
-		return outputPredictedExpression;
-	}
-
-	public String getGenotypeConfigurationType() {
-		return genotypeConfigurationType;
-	}
-	
-	public Boolean getAddGenotypeTerm() {
-		return addGenotypeTerm;
+	public Boolean getWholeBloodCorrelation(){
+		return wholeBloodCorrelation;
 	}
 	
 	public Boolean getUseOLS(){
