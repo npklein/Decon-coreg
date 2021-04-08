@@ -32,7 +32,7 @@
                     <archive>
                         <manifest>
                             <addClasspath>true</addClasspath>
-                            <mainClass>main.java.decon_eQTL.Main</mainClass>
+                            <mainClass>main.java.decon_coreg.Main</mainClass>
                         </manifest>
                     </archive>
                     <descriptorRefs>
