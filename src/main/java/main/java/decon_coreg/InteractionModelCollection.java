@@ -2,19 +2,19 @@ package main.java.decon_coreg;
 
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 
 /*
- *  Collection of all the interaction models and their shared data (genotypes, expression etc)
+ *  Collection of all the interaction models and their shared data (expression etc)
  *  There are n + 1 interaction models, where n = the number of cell types. One full model
  *  with all cell types, and for each cell type one model with the interaction term for that
  *  model removed
  */
 public class InteractionModelCollection {
-    private double[] expressionValues;
-    private String qtlName;
+    private double[] expressionValuesGeneY;
+    private double[] expressionValuesGeneX;
+    private String genePairName;
     private HashMap<String, InteractionModel> interactionModels = new HashMap<String, InteractionModel>();
     private HashMap<String, Double> pvalues = new HashMap<String, Double>();
     private ArrayList<String> fullModelNames = new ArrayList<String>();
@@ -75,8 +75,9 @@ public class InteractionModelCollection {
      *
      * @param expression Expression vector
      */
-    public void setExpressionValues(double[] expression) {
-        this.expressionValues = expression;
+    public void setExpressionValues(double[] expressionGeneY, double[] expressionGeneX) {
+        this.expressionValuesGeneY = expressionGeneY;
+        this.expressionValuesGeneX = expressionGeneX;
     }
 
     /**
@@ -84,16 +85,26 @@ public class InteractionModelCollection {
      *
      * @return Expression vector
      */
-    public double[] getExpessionValues() {
-        return this.expressionValues;
+    public double[] getExpessionValuesGeneY() {
+        return this.expressionValuesGeneY;
+    }
+    
+    /**
+     * Get the expression values (y) of all the interaction models.
+     *
+     * @return Expression vector
+     */
+    public double[] getExpessionValuesGeneX() {
+        return this.expressionValuesGeneX;
     }
 
-    public void setQtlName(String qtlName) {
-        this.qtlName = qtlName;
+
+    public void setGenePairName(String genePairName) {
+        this.genePairName = genePairName;
     }
 
     public String getQtlName() throws IllegalAccessException {
-        return this.qtlName;
+        return this.genePairName;
     }
 
     /*
@@ -160,9 +171,9 @@ public class InteractionModelCollection {
             InteractionModel fullModel = getInteractionModel(modelName);
 
             if (useOLS) {
-                fullModel.calculateSumOfSquaresOLS(getExpessionValues());
+                fullModel.calculateSumOfSquaresOLS(getExpessionValuesGeneY());
             } else {
-                fullModel.calculateSumOfSquaresNNLS(getExpessionValues());
+                fullModel.calculateSumOfSquaresNNLS(getExpessionValuesGeneY());
             }
 
             if (sumOfSquares == -1) {
@@ -191,9 +202,9 @@ public class InteractionModelCollection {
                 modelCelltype.put(modelName, celltype);
 
                 if (useOLS) {
-                    ctModel.calculateSumOfSquaresOLS(getExpessionValues());
+                    ctModel.calculateSumOfSquaresOLS(getExpessionValuesGeneY());
                 } else {
-                    ctModel.calculateSumOfSquaresNNLS(getExpessionValues());
+                    ctModel.calculateSumOfSquaresNNLS(getExpessionValuesGeneY());
                 }
 
                 if (sumOfSquares == -1) {
@@ -250,8 +261,9 @@ public class InteractionModelCollection {
                 double celltypePerc = cellCount.getCellCountPercentages()[sampleIndex][celltypeIndex];
                 // if i (cell type index) is the same as m (model index), don't add the interaction term of celltype:GT
                 fullModel.addObservedValue(celltypePerc, sampleIndex, celltypeIndex);
-                fullModel.addObservedValue(celltypePerc * gene[sampleIndex],
+                fullModel.addObservedValue(celltypePerc * this.expressionValuesGeneX[sampleIndex],
                 							sampleIndex, numberOfCelltypes + celltypeIndex);
+
 
             }
             fullModel.setModelLength();
@@ -269,23 +281,24 @@ public class InteractionModelCollection {
         CellCount cellCount = getCellCount();
         int numberOfCelltypes = cellCount.getNumberOfCelltypes();
         int numberOfSamples = cellCount.getNumberOfSamples();
-        int genotypeCounter = numberOfCelltypes;
+        int interactionTermCount = cellCount.getNumberOfCelltypes();
         // -1 because one interaction term is removed
         int numberOfTerms = (numberOfCelltypes * 2) - 1;
-
+        //System.out.println("Number of cell types: "+numberOfCelltypes);
+        //System.out.println("Number of terms: "+numberOfTerms);
         // m = model, there are equally many models as celltypes
         for (int modelIndex = 0; modelIndex < numberOfCelltypes; modelIndex++) {
+        	//System.out.println("Model nr: "+modelIndex);
             InteractionModel ctModel = new InteractionModel(numberOfSamples, numberOfTerms);
             // calculate p-value and save it, with other information, in a ctModel object.
             // Then, add it to a list of these models to return as decon results
             String celltypeName = cellCount.getCelltype(modelIndex);
-            String modelName = String.format("ctModel_%s_%s", celltypeName);
+            String modelName = String.format("ctModel_%s", celltypeName);
             ctModel.setModelName(modelName);
             ctModel.setCelltypeName(celltypeName);
             addInteractionModel(ctModel, ctModel.getModelName(), false);
             for (int sampleIndex = 0; sampleIndex <= numberOfSamples - 1; sampleIndex++) {
-                int configurationIndex = 0;
-
+            	//System.out.println("Sample index: "+sampleIndex);
                 for (int celltypeIndex = 0; celltypeIndex < numberOfCelltypes; celltypeIndex++) {
                     // There is one fullModel including all celltypes add values for celltypePerc and interaction term of
                     // celltypePerc * gene so that you get [[0.3, 0.6], [0.4, 0.8], [0.2, 0.4], [0.1, 0.2]]
@@ -304,22 +317,24 @@ public class InteractionModelCollection {
                         }
                     }
 
-                    // if celltypeIndex is the same as m modelIndex, don't add the interaction term of celltype:GT
+                    // if celltypeIndex is the same as m modelIndex, don't add the interaction term of celltype:gene
                     if (celltypeIndex != modelIndex) {
-                        // Only add IndependentVariableName once per QTL (j==0)
+                        // Only add IndependentVariableName once per gene-gene pair (j==0)
                         if (sampleIndex == 0) {
 
-                            // Add the interaction term of celltype:genotype
-                            ctModel.addIndependentVariableName(cellCount.getCelltype(celltypeIndex) + ":GT");
+                            // Add the interaction term of celltype:gene
+                            ctModel.addIndependentVariableName(cellCount.getCelltype(celltypeIndex) + ":gene");
                             // save the index of the variables related to current celltype so that this can be used later to calculate
-                            // Beta1 celltype% + Beta2 * celltype%:GT. For fullModel not so necesarry as it's always <numberOfCelltypes> away,
+                            // Beta1 celltype% + Beta2 * celltype%:gene. For fullModel not so necessary as it's always <numberOfCelltypes> away,
                             // but for ctModel this is easiest method
                             int[] index = new int[]{celltypeIndex, numberOfCelltypes - 1 + celltypeIndex};
                             ctModel.addCelltypeVariablesIndex(index);
                          }
-                        configurationIndex++;
-                        ctModel.addObservedValue(celltype_perc * gene, sampleIndex, genotypeCounter);
-
+                        //System.out.println("interaction count: "+interactionTermCount);
+                        ctModel.addObservedValue(celltype_perc * this.expressionValuesGeneX[sampleIndex], sampleIndex,interactionTermCount);
+                        interactionTermCount++;
+                        //System.out.println("debug");
+                        //System.out.println(modelIndex+"\t"+celltypeIndex+"\t"+celltype_perc+"\t"+this.expressionValuesGeneX[sampleIndex]+"\t"+celltype_perc * this.expressionValuesGeneX[sampleIndex]);
                     }
                     // if i==m there is not celltype:GT interaction term so only one index added to CelltypeVariables
                     else if (sampleIndex == 0) {
@@ -327,18 +342,19 @@ public class InteractionModelCollection {
                         ctModel.addCelltypeVariablesIndex(index);
                     }
                 }
-                // because 1 of numberOfCelltypes + i needs to be skipped,
-                // keeping it tracked with separate value is easier
                 ctModel.setModelLength();
+
+                interactionTermCount = cellCount.getNumberOfCelltypes();
             }
         }
     }
 
 
-    public void cleanUp(Boolean removePredictedValues) throws IllegalAccessException {
-        this.expressionValues = null;
+    public void cleanUp() throws IllegalAccessException {
+        this.expressionValuesGeneX = null;
+        this.expressionValuesGeneY = null;
         for (InteractionModel interactionModel : this.interactionModels.values()) {
-            interactionModel.cleanUp(removePredictedValues);
+            interactionModel.cleanUp();
         }
         this.cellCount = null;
     }

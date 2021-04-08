@@ -56,4 +56,11 @@ public class ExpressionData {
 		return this.geneExpression;
 	}
 
+	public double[]  getGeneExpression(String gene) throws IllegalAccessException{
+		if(this.geneExpression == null){
+			throw new IllegalAccessException("geneExpression not set ExpressionData");
+		}
+		return this.geneExpression.get(gene);
+	}
+	
 }

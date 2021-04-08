@@ -4,7 +4,6 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
-import org.apache.commons.math3.exception.DimensionMismatchException;
 import org.apache.commons.math3.stat.regression.OLSMultipleLinearRegression;
 
 /*
@@ -18,7 +17,6 @@ public class InteractionModel {
 	private List<int[]> celltypeVariablesIndex = new ArrayList <int[]>();
 	private double[][] observedValues;
 	private String modelName;
-	private String genotypeConfiguration;
 	// Initialise with number so that we can test if it has been set
 	private Double sumOfSquares;
 	private Double pvalue;
@@ -30,14 +28,13 @@ public class InteractionModel {
 	@SuppressWarnings("unused")
 	private double[] estimatedBetaStandardErrors;
 	private double estimatedStandardError;
-	private double[] predictedValues;
 	private String celltypeName;
 	private int sampleSize;
 	
 	/**
 	 * Initialise object by setting the observed values size. Per QTL for each sample the observed values are each term of the 
-	 * linear model. E.g. if the model is y = mono% + neut% + mono%:GT, the observedValues are
-	 * [mono%, neut%, mono% * GT]
+	 * linear model. E.g. if the model is y = mono% + neut% + mono%:gene, the observedValues are
+	 * [mono%, neut%, mono% * gene]
 	 * 
 	 * @param sampleSize 	number of samples
 	 * @param numberOfTerms 	number of terms that the interaction model has
@@ -130,13 +127,6 @@ public class InteractionModel {
 			addIndependentVariableName(list.get(celltypeIndex)+":GT");
 		}
 	}
-	public void setGenotypeConfiguration(String genotypeConfiguration){
-		// 0 = dont swap genotype, 1 = swap genotype
-		this.genotypeConfiguration = genotypeConfiguration;
-	}
-	public String getGenotypeConfiguration() throws IllegalAccessException{
-		return this.genotypeConfiguration;
-	}
 
 	public void setModelLength(){
 		this.modelLength = this.observedValues.length;
@@ -181,12 +171,6 @@ public class InteractionModel {
 		return(this.residuals);
 	}
 	
-	private void setPredictedValues(double[] predictedValues) {
-		this.predictedValues = predictedValues;
-	}
-	public double[] getPredictedValues(){
-		return this.predictedValues;
-	}
 	/**
 	 * Calculate the sum of squares, using Non-Negative Linear Regression, given a y expression vector with y ~
 	 * model.
@@ -202,14 +186,8 @@ public class InteractionModel {
 	public void calculateSumOfSquaresNNLS(double[] expressionValues) throws IllegalAccessException {
 		NonNegativeLeastSquares nnls = new NonNegativeLeastSquares();
 		
-		try{
-			nnls.newSampleData(expressionValues, this.getObservedValues());
-		}
-		catch (DimensionMismatchException e){
-			DeconvolutionLogger.log.info(String.format("Length of expression and genotype data not the same\nexpression length: %d\nobserved values length: %d\n", 
-					expressionValues.length, this.getNumberOfTerms()));
-			throw(e);
-		}
+		nnls.newSampleData(expressionValues, this.getObservedValues());
+
 		
 		// results contain:
 		// normsqr: sqroot of the norm error vector
@@ -221,13 +199,11 @@ public class InteractionModel {
 		setSumOfSquares(nnls.calculateResidualSumOfSquares());
 		setDegreesOfFreedom(expressionValues.length - (getNumberOfTerms() + 1));
 		
-		double[] predictedValues = nnls.getPredictedExpressionValues();
 		double[] residuals = nnls.estimateResiduals();
 		setEstimatedBetaStandardErrors(nnls.estimateBetaStandardErrors(this.sampleSize, this.numberOfTerms,
 																	   residuals, estimatedRegressionParameters,
 																	   this.getObservedValues()));
 		setResiduals(residuals);
-		setPredictedValues(predictedValues);
 	}
 	public void setEstimatedBetaStandardErrors(double[] estimatedBetaStandardErrors){
 		this.estimatedBetaStandardErrors = estimatedBetaStandardErrors;
@@ -241,12 +217,9 @@ public class InteractionModel {
 		return this.estimatedStandardError;
 	}
 
-	public void cleanUp(Boolean removePredictedValues) {
+	public void cleanUp() {
 		this.observedValues = null;
 		this.residuals = null;
-		if(removePredictedValues){
-			this.predictedValues = null;
-		}
 	}
 
 	public void setCelltypeName(String celltypeName) {
@@ -273,14 +246,13 @@ public class InteractionModel {
 		OLSMultipleLinearRegression regression = new OLSMultipleLinearRegression();
 		// if GetIntercept is false, remove the intercept (Beta1) from the linear model
 		regression.setNoIntercept(true);
-		try{
-			regression.newSampleData(expressionValues, this.getObservedValues());
-		}
-		catch (DimensionMismatchException e){
-			DeconvolutionLogger.log.info(String.format("Length of expression and genotype data not the same\nexpression length: %d\nobserved values length: %d\n", 
-					expressionValues.length, this.getNumberOfTerms()));
-			throw(e);
-		}
+		regression.newSampleData(expressionValues, this.getObservedValues());
+		/*for(int i = 0; i < expressionValues.length; i++) {
+		 * 
+			System.out.println(expressionValues[i]+"\t"+ this.getObservedValues()[i][0]+"\t"+this.getObservedValues()[i][1]+"\t"+
+							   this.getObservedValues()[i][2]+"\t"+ this.getObservedValues()[i][3]+"\t"+this.getObservedValues()[i][4]+
+							   "\t"+this.getObservedValues()[i][5]+"\t"+this.getObservedValues()[i][6]);
+		}*/
 		this.setSumOfSquares(regression.calculateResidualSumOfSquares());
 		this.setDegreesOfFreedom(expressionValues.length - (this.getNumberOfTerms() + 1));
 		setResiduals(regression.estimateResiduals());

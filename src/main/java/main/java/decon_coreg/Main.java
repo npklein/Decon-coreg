@@ -7,8 +7,8 @@ import org.apache.commons.cli.ParseException;
 
 public class Main {
 	/**
-	 * Deconvolute a set of QTLs given the expression levels, genotypes,
-	 * and cell counts. Calculates the p-values for the deconvoluted QTLs
+	 * Deconvolute gene-gene co-regulation given the expression levels and
+	 * and cell counts. Calculates the p-values for the deconvoluted coregulation
 	 * and writes them to an out file
 	 * 
 	 * @param args List of command line arguments
@@ -22,7 +22,7 @@ public class Main {
 		commandLineOptions.parseCommandLine(args);
 		Deconvolution deconvolution = new Deconvolution(commandLineOptions);
 		deconvolution.readInputData();
-		List<DeconvolutionResult> deconvolutionResults = deconvolution.runDeconPerGeneSnpPair();
+		List<DeconvolutionResult> deconvolutionResults = deconvolution.runDeconPerGeneGenePair();
 		deconvolution.writeDeconvolutionResults(deconvolutionResults);
 
 	}

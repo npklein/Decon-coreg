@@ -1,7 +1,2 @@
 gene	snp
 gene_1	gene_3
-gene_1	gene_10
-gene_2	gene_5
-gene_3	gene_6
-gene_2	gene_5
-gene_3	gene_7

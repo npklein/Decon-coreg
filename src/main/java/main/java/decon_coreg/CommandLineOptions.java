@@ -101,7 +101,7 @@ public class CommandLineOptions {
 
 		expressionFile = cmdLine.getOptionValue("expression");
 		cellCountFile = cmdLine.getOptionValue("cellcount");
-		genesToTestFile = cmdLine.getOptionValue("genesToTestOption");
+		genesToTestFile = cmdLine.getOptionValue("genesToTest");
 		// check if all input files exist before starting the program to return error as early as possible
 		if(!new File(expressionFile).exists() || new File(expressionFile).isDirectory()) { 
 		    throw new FileNotFoundException(expressionFile+" does not exist");
