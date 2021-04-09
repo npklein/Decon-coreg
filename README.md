@@ -25,13 +25,10 @@ jsci-sci
 
     -c,--cellcount <file>                     Cellcount file name
     -e,--expression <file>                    Expression file name
-    -gc,--genotypeConfigurationType <arg>     Which genotype configuration type to use (either all or two)
     -help                                     print this message
     -no,--no_console                          Do not output logging info to the console
     -o,--outfolder <path>                     Path to folder to write output to
-    -oe,--outputPredictedExpression           Write output file with predicted expression
     -of,--outfile <file>                      Outfile name of deconvolution results (will be written in outfolder)
-    -r,--round_dosage                         Round the dosage to the closest int
-    -sn,--snpsToTest <file>                   Tab delimited file with first column gene name, second column SNP name. Need to match with names from genotype and expression files.
+    -sn,--genesToTest <file>                   Tab delimited file with first column gene name, second column gene name. files.
     -t,--test_run                             Only run deconvolution for 100 QTLs for quick test run
     -w,--whole_blood_qtl                      Add whole blood eQTL (pearson correlation genotypes and expression)
