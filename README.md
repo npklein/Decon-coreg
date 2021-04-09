@@ -15,7 +15,7 @@ jsci-sci
 
 ## minimal usage example
     
-    java -jar Decon-eQTL-v*.*.*-jar-with-dependencies.jar -c <file containing cellcounts> \
+    java -jar Decon-coreg-v*.*.*-jar-with-dependencies.jar -c <file containing cellcounts> \
                             -e <file containing expression data> \
                             -o <output directory> \
                             -sn <file with gene gene combinations to test>
